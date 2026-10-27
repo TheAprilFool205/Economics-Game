@@ -1,0 +1,406 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clear the Market</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one centered column, a trading-screen HUD above a question card, price-line sparkline tracks the score */
+:root{
+  --bg:#e9eef1; --panel:#f8fafb; --fg:#12202b; --muted:#566673; --line:#c5d0d7;
+  --accent:#0a6a86; --accent-ink:#ffffff; --gain:#17784a; --gain-bg:#dff1e7; --loss:#b3352a; --loss-bg:#f7e1de; --gold:#a86f00;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1419; --panel:#151f26; --fg:#e4ecf1; --muted:#8fa1ad; --line:#2a3a45;
+  --accent:#4cc3e0; --accent-ink:#06222b; --gain:#52d68f; --gain-bg:#14352550; --loss:#ff8174; --loss-bg:#3d1b1850; --gold:#f0b94a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1419; --panel:#151f26; --fg:#e4ecf1; --muted:#8fa1ad; --line:#2a3a45;
+  --accent:#4cc3e0; --accent-ink:#06222b; --gain:#52d68f; --gain-bg:#14352550; --loss:#ff8174; --loss-bg:#3d1b1850; --gold:#f0b94a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--body);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:720px;margin:0 auto;display:grid;gap:16px}
+h1,h2{font-family:var(--display);font-stretch:112%;font-weight:800;letter-spacing:-.01em;line-height:1.02;margin:0;text-wrap:balance}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font:600 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* HUD */
+.hud{display:grid;grid-template-columns:1fr auto;gap:12px 20px;align-items:end;padding-bottom:14px;border-bottom:2px solid var(--fg)}
+.brand{font:800 1.05rem/1 var(--display);font-stretch:118%;letter-spacing:.01em}
+.stats{display:flex;gap:20px;align-items:flex-end}
+.stat{display:grid;gap:4px;min-width:0}
+.stat b{font:600 1.5rem/1 var(--mono);font-variant-numeric:tabular-nums}
+.pips{display:flex;gap:5px;height:1.5rem;align-items:center}
+.pip{width:14px;height:14px;border-radius:50%;background:var(--loss);transition:background .2s,transform .2s}
+.pip.gone{background:transparent;box-shadow:inset 0 0 0 2px var(--line);transform:scale(.8)}
+.ticker{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
+.spark{width:100%;height:44px;display:block}
+.spark .base{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.spark .area{fill:var(--accent);opacity:.14}
+.spark .ln{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.spark .dot{fill:var(--gain)}
+
+/* Start */
+.hero{display:grid;gap:14px;padding-block:12px 4px}
+.hero h1{font-size:clamp(2.6rem,11vw,4.6rem)}
+.hero p{margin:0;max-width:52ch;color:var(--muted)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.rules li{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:.9rem;min-width:0}
+.rules b{display:block;font:600 .72rem/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 14px;font-weight:500;font-size:.92rem}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:13px 22px;font:700 1rem/1 var(--display);font-stretch:112%;letter-spacing:.02em}
+.btn.alt{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 2px var(--fg)}
+.btn:hover{filter:brightness(1.08)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.best{margin-left:auto;color:var(--muted);font-size:.9rem}
+
+/* Question */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;display:grid;gap:16px}
+.meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.clock{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.clock i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left}
+.clock.low i{background:var(--loss)}
+.q{font:600 1.22rem/1.35 var(--body);margin:0;text-wrap:pretty}
+.opts{display:grid;gap:10px}
+.opt{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start;text-align:left;background:var(--bg);border:1.5px solid var(--line);border-radius:6px;padding:12px 14px;min-width:0}
+.opt kbd{font:600 .8rem/1 var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:5px 0;text-align:center;background:var(--panel)}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt:disabled{cursor:default}
+.opt.ok{border-color:var(--gain);background:var(--gain-bg)}
+.opt.bad{border-color:var(--loss);background:var(--loss-bg)}
+.opt.dim{opacity:.55}
+.numrow{display:flex;gap:10px;flex-wrap:wrap}
+.numrow input{flex:1 1 160px;min-width:0;font:600 1.3rem/1 var(--mono);padding:12px 14px;border:1.5px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.hint{color:var(--muted);font-size:.88rem;margin:0}
+.fb{border-left:4px solid var(--line);padding:2px 0 2px 14px;display:grid;gap:6px}
+.fb.ok{border-color:var(--gain)}.fb.bad{border-color:var(--loss)}
+.fb h2{font-size:1.2rem}
+.fb.ok h2{color:var(--gain)}.fb.bad h2{color:var(--loss)}
+.fb p{margin:0}
+.pts{font:600 .95rem/1 var(--mono);color:var(--gold)}
+
+/* End */
+.rank{font:800 clamp(2rem,8vw,3.2rem)/1 var(--display);font-stretch:112%}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.fact{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:10px 12px;display:grid;gap:6px}
+.fact b{font:600 1.4rem/1 var(--mono)}
+.spark.big{height:90px}
+.miss{display:grid;gap:10px}
+.miss article{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:12px 14px;display:grid;gap:4px}
+.miss h3{margin:0;font:600 1rem/1.35 var(--body)}
+.miss .ans{color:var(--gain);font-weight:600}
+.miss p{margin:0;color:var(--muted);font-size:.92rem}
+@media (max-width:480px){.stats{gap:14px}.stat b{font-size:1.25rem}.hud{grid-template-columns:1fr}.stats{justify-content:space-between}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+html{color-scheme:light dark}body{margin:0}
+</style>
+
+</head>
+<body>
+<main class="wrap">
+  <header class="hud">
+    <div class="brand">CLEAR THE MARKET</div>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><span class="label">Profit</span><b id="score">$0</b></div>
+      <div class="stat"><span class="label">Streak</span><b id="mult">×1</b></div>
+      <div class="stat"><span class="label">Credit</span><div class="pips" id="pips"></div></div>
+    </div>
+    <div class="ticker"><span class="label">Price line</span><svg class="spark" id="spark" viewBox="0 0 300 44" preserveAspectRatio="none" role="img" aria-label="Your profit after each question"></svg></div>
+  </header>
+
+  <section id="start" class="hero">
+    <h1>Clear the market before the exam does.</h1>
+    <p>Twelve questions from your study guide on supply, demand, elasticity, utility, costs, MR and MC, perfect competition and monopoly. Right answers earn profit. Wrong answers burn credit. Run out of credit and trading halts.</p>
+    <ul class="rules">
+      <li><b>Speed pays</b>Each question has a clock. Faster answers earn a bonus of up to $50.</li>
+      <li><b>Streaks multiply</b>Every correct answer in a row raises the multiplier, up to ×5.</li>
+      <li><b>Three credits</b>A miss or a timeout costs one. Lose all three and the round ends.</li>
+    </ul>
+    <div>
+      <div class="label" style="margin-bottom:8px">Pick a desk</div>
+      <div class="chips" id="chips" role="group" aria-label="Topic"></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="go">Open the market</button>
+      <span class="best mono" id="best"></span>
+    </div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="card">
+      <div class="meta"><span class="label" id="qmeta"></span><span class="label" id="qtype"></span></div>
+      <div class="clock" id="clock"><i id="clockbar"></i></div>
+      <p class="q" id="qtext"></p>
+      <div class="opts" id="opts"></div>
+      <form class="numrow" id="numform" hidden>
+        <input id="numin" type="text" inputmode="decimal" autocomplete="off" aria-label="Your numeric answer">
+        <button class="btn" type="submit">Lock in</button>
+      </form>
+      <p class="hint" id="numhint" hidden></p>
+      <div class="fb" id="fb" hidden>
+        <h2 id="fbh"></h2><p id="fbp"></p><span class="pts" id="fbpts"></span>
+        <div class="row" style="margin-top:6px"><button class="btn" id="next">Next question</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="end" hidden style="display:grid;gap:16px">
+    <div class="label" id="endlabel"></div>
+    <div class="rank" id="rank"></div>
+    <svg class="spark big" id="spark2" viewBox="0 0 300 90" preserveAspectRatio="none" role="img" aria-label="Your profit across the round"></svg>
+    <div class="facts" id="facts"></div>
+    <div class="row">
+      <button class="btn" id="again">Play again</button>
+      <button class="btn alt" id="redo" hidden>Replay my misses</button>
+      <button class="btn alt" id="home">Change desk</button>
+    </div>
+    <div id="missbox" hidden>
+      <div class="label" style="margin-bottom:10px">Review what you missed</div>
+      <div class="miss" id="miss"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+var TOPICS={all:"All desks",ds:"Supply & demand",el:"Elasticity",mu:"Marginal utility",co:"Costs & profit",mr:"MR & MC",pc:"Perfect competition",mo:"Monopoly"};
+// mc: first option is the correct one (shuffled at play time). tf: a = true/false. num: a = answer, tol = allowed error.
+var BANK=[
+{k:"ds",t:"mc",q:"The price is set below the equilibrium price. What happens?",o:["A shortage: quantity demanded exceeds quantity supplied","A surplus: quantity supplied exceeds quantity demanded","Nothing, the market is already in equilibrium","Supply shifts right until the price falls further"],e:"Below equilibrium, buyers want more than sellers offer. The shortage pushes the price back up."},
+{k:"ds",t:"mc",q:"Demand increases and supply stays the same. What happens to equilibrium price and quantity?",o:["Price rises, quantity rises","Price rises, quantity falls","Price falls, quantity rises","Price falls, quantity falls"],e:"A rightward demand shift moves you up along the supply curve: higher price and higher quantity."},
+{k:"ds",t:"mc",q:"Which of these moves you ALONG the demand curve instead of shifting it?",o:["A change in the good's own price","A rise in consumer income","A change in tastes","A change in the price of a substitute"],e:"Only the good's own price causes a change in quantity demanded. Everything else shifts the whole curve."},
+{k:"ds",t:"tf",q:"A price ceiling set ABOVE the equilibrium price has no effect on the market.",a:true,e:"A ceiling only binds when it is below equilibrium. Above it, the market price never reaches the cap."},
+{k:"ds",t:"mc",q:"Supply increases and demand stays the same. What happens?",o:["Price falls, quantity rises","Price rises, quantity falls","Price rises, quantity rises","Price falls, quantity falls"],e:"A rightward supply shift moves you down along the demand curve: lower price, higher quantity."},
+{k:"ds",t:"mc",q:"Demand and supply BOTH increase. What can you say for sure?",o:["Equilibrium quantity rises; the price change is ambiguous","Equilibrium price rises; the quantity change is ambiguous","Both price and quantity rise","Both price and quantity fall"],e:"Both shifts push quantity up. Demand pushes price up and supply pushes it down, so price depends on which shift is bigger."},
+{k:"ds",t:"mc",q:"A frost destroys much of the orange crop. What happens in the orange market?",o:["Supply shifts left; price rises, quantity falls","Demand shifts left; price falls, quantity falls","Supply shifts right; price falls, quantity rises","Demand shifts right; price rises, quantity rises"],e:"Fewer oranges are offered at every price, so supply shifts left and the price rises."},
+{k:"ds",t:"mc",q:"A price floor set above equilibrium (such as a minimum wage in the labor market) creates what?",o:["A surplus","A shortage","A new equilibrium","Perfectly elastic demand"],e:"A binding floor keeps the price above equilibrium, so quantity supplied exceeds quantity demanded."},
+
+{k:"el",t:"num",q:"Price rises from $10 to $12 and quantity demanded falls from 50 to 40. Using the midpoint method, what is the price elasticity of demand? (round to 2 decimals)",a:1.22,tol:.03,e:"% change in Q = −10 ÷ 45 = −22.2%. % change in P = 2 ÷ 11 = 18.2%. 22.2 ÷ 18.2 ≈ 1.22, so demand is elastic."},
+{k:"el",t:"mc",q:"Demand is inelastic and the seller raises the price. What happens to total revenue?",o:["It rises","It falls","It stays the same","It cannot be determined"],e:"With inelastic demand, quantity falls by a smaller percentage than price rises, so revenue goes up."},
+{k:"el",t:"mc",q:"Income rises and the quantity demanded of instant ramen falls. Ramen has what kind of income elasticity?",o:["Negative, so it is an inferior good","Positive and below 1, so it is a necessity","Greater than 1, so it is a luxury","Zero"],e:"Negative income elasticity defines an inferior good."},
+{k:"el",t:"mc",q:"The cross-price elasticity between coffee and tea is positive. What does that tell you?",o:["They are substitutes","They are complements","They are unrelated","They are both inferior goods"],e:"If a rise in tea's price raises the quantity of coffee demanded, buyers switch between them: substitutes."},
+{k:"el",t:"tf",q:"If demand is unit elastic, a change in price leaves total revenue unchanged.",a:true,e:"Quantity changes by the same percentage as price in the opposite direction, so P × Q stays constant."},
+{k:"el",t:"mc",q:"Which factor makes demand MORE elastic?",o:["Many close substitutes are available","The good is a daily necessity","The buyer has very little time to adjust","The good takes a tiny share of income"],e:"Close substitutes let buyers walk away when the price rises. Necessities, short time horizons and tiny budget shares all make demand less elastic."},
+{k:"el",t:"num",q:"Income rises 10% and the quantity demanded of a good rises 25%. What is the income elasticity of demand?",a:2.5,tol:.01,e:"25% ÷ 10% = 2.5. It is greater than 1, so the good is a luxury."},
+{k:"el",t:"tf",q:"When a tax is placed on a good, the side of the market that is LESS elastic bears more of the burden.",a:true,e:"The less elastic side has fewer alternatives, so it cannot escape the tax as easily."},
+
+{k:"mu",t:"mc",q:"The law of diminishing marginal utility says that...",o:["Each additional unit consumed adds less satisfaction than the previous one","Total utility falls with every unit consumed","Consumers always prefer cheaper goods","Marginal utility is always negative"],e:"As you consume more in a period, the extra satisfaction from each unit shrinks."},
+{k:"mu",t:"mc",q:"When marginal utility equals zero, total utility is...",o:["At its maximum","At its minimum","Zero","Rising fastest"],e:"TU rises while MU is positive, peaks when MU = 0, and falls when MU turns negative."},
+{k:"mu",t:"mc",q:"Which condition describes the utility-maximizing consumer?",o:["MU of X ÷ price of X = MU of Y ÷ price of Y","MU of X = MU of Y","Price of X = price of Y","Total utility of X = total utility of Y"],e:"The last dollar must buy the same extra satisfaction in every use, so MU per dollar is equal across goods."},
+{k:"mu",t:"num",q:"A movie ticket costs $5 and gives 25 units of marginal utility. What is its marginal utility per dollar?",a:5,tol:.01,e:"25 ÷ $5 = 5 per dollar. If pizza gives only 4 per dollar, buy more movies and less pizza."},
+{k:"mu",t:"mc",q:"MU per dollar is 6 for good A and 3 for good B. What should the consumer do?",o:["Buy more A and less B","Buy more B and less A","Buy only A","Change nothing, the budget is optimal"],e:"A gives more satisfaction per dollar. Shifting spending to A lowers its MU and raises B's until the ratios match."},
+
+{k:"co",t:"mc",q:"Which is an IMPLICIT cost?",o:["The salary the owner gave up to run her own business","Wages paid to employees","Rent paid to a landlord","The electricity bill"],e:"Implicit costs are opportunity costs of resources the firm already owns, such as the owner's time. The others are out-of-pocket explicit costs."},
+{k:"co",t:"num",q:"Revenue is $120,000, explicit costs are $70,000 and implicit costs are $60,000. What is economic profit?",a:-10000,tol:1,e:"Accounting profit is 120,000 − 70,000 = $50,000. Subtract the $60,000 implicit costs and economic profit is −$10,000."},
+{k:"co",t:"tf",q:"A firm earning zero economic profit is losing money.",a:false,e:"Zero economic profit is normal profit: the owner earns exactly what the next-best use of their resources would pay."},
+{k:"co",t:"mc",q:"Marginal cost cuts through which points?",o:["The minimum points of AVC and ATC","The maximum point of ATC","The minimum point of AFC","The peak of total cost"],e:"When MC is below an average, it pulls the average down; when above, it pulls it up. So MC crosses the average at its minimum."},
+{k:"co",t:"tf",q:"Sunk costs should be ignored when deciding what to do next.",a:true,e:"Sunk costs cannot be recovered whatever you choose, so only forward-looking costs and revenues matter."},
+{k:"co",t:"mc",q:"As output rises, average fixed cost...",o:["Falls, because the fixed cost is spread over more units","Rises, because more output is costlier","Stays constant","First falls, then rises"],e:"AFC = FC ÷ Q, and FC does not change, so AFC always falls as Q rises."},
+
+{k:"mr",t:"mc",q:"At what output does any firm maximize profit?",o:["Where marginal revenue equals marginal cost","Where price equals average total cost","Where total revenue is highest","Where average cost is lowest"],e:"If MR > MC, one more unit adds profit. If MR < MC, it loses profit. Profit peaks where they are equal."},
+{k:"mr",t:"mc",q:"At the current output, MR = $12 and MC = $9. What should the firm do?",o:["Produce more","Produce less","Hold output where it is","Shut down"],e:"The next unit adds $12 of revenue and only $9 of cost, so profit rises with more output."},
+{k:"mr",t:"mc",q:"A competitive firm faces P = $5, ATC = $7 and AVC = $4 at its MR = MC output. What should it do in the short run?",o:["Keep producing and take a loss","Shut down immediately","Raise its price","Earn an economic profit"],e:"P covers AVC, so producing loses less than shutting down: the revenue pays variable costs and part of fixed costs."},
+{k:"mr",t:"mc",q:"What is the short-run shutdown rule?",o:["Shut down if price is below average variable cost","Shut down if price is below average total cost","Shut down if marginal cost is rising","Shut down if profit is zero"],e:"Below AVC, every unit loses money before fixed costs. Shutting down limits the loss to fixed costs."},
+{k:"mr",t:"num",q:"A firm sells 200 units at a price of $15 with average total cost of $11. What is its profit in dollars?",a:800,tol:1,e:"Profit = (P − ATC) × Q = (15 − 11) × 200 = $800."},
+
+{k:"pc",t:"mc",q:"Which is NOT a feature of perfect competition?",o:["High barriers to entry","Many buyers and sellers","Identical products","Free entry and exit in the long run"],e:"Perfect competition has free entry and exit. High barriers belong to monopoly and some oligopolies."},
+{k:"pc",t:"mc",q:"What does the demand curve facing a single perfectly competitive firm look like?",o:["Horizontal at the market price","Downward sloping","Vertical","Upward sloping"],e:"The firm is a price taker: it can sell any quantity at the market price, so demand is perfectly elastic and MR = P."},
+{k:"pc",t:"mc",q:"Why do perfectly competitive firms earn zero economic profit in the long run?",o:["Profit attracts new firms, which pushes the price down","The government taxes away profit","Firms choose to produce where MR > MC","Costs are always higher than revenue"],e:"Entry shifts market supply right until the price falls to minimum ATC and profit disappears."},
+{k:"pc",t:"tf",q:"In long-run equilibrium in perfect competition, P = MR = MC = minimum ATC.",a:true,e:"P = MC gives allocative efficiency and output at minimum ATC gives productive efficiency."},
+{k:"pc",t:"mc",q:"A perfectly competitive firm's short-run supply curve is...",o:["The part of MC above minimum AVC","The whole ATC curve","The part of MC below AVC","The MR curve"],e:"Below minimum AVC the firm shuts down, so only the MC segment above it traces out quantity supplied."},
+
+{k:"mo",t:"mc",q:"Why is an electric utility usually a natural monopoly?",o:["High fixed costs make ATC fall across the whole market, so one firm is cheapest","The government banned competitors","It owns the only supply of a key resource","It holds a patent on electricity"],e:"With huge fixed costs and economies of scale, one firm serving everyone has lower average cost than several."},
+{k:"mo",t:"mc",q:"A drug company holds a 20-year patent on a new drug. What type of monopoly is this?",o:["Legal (government-granted) monopoly","Natural monopoly","Resource monopoly","Perfect competition"],e:"The law grants exclusive rights through the patent, which creates the barrier to entry."},
+{k:"mo",t:"mc",q:"Why is a monopolist's marginal revenue below its price?",o:["To sell one more unit it must cut the price on all units","It faces a horizontal demand curve","Its costs are higher than a competitive firm's","Marginal revenue equals price for every firm"],e:"The price cut applies to every unit sold, not just the last one, so MR falls faster than the demand curve."},
+{k:"mo",t:"num",q:"A monopolist faces demand P = 20 − Q and has MC = 4. What quantity maximizes profit? (MR = 20 − 2Q)",a:8,tol:.01,e:"Set MR = MC: 20 − 2Q = 4, so Q = 8. The price is then read off demand: P = 20 − 8 = $12."},
+{k:"mo",t:"num",q:"Same monopolist: demand P = 20 − Q, MC = 4, and it produces the profit-maximizing Q = 8. What price does it charge?",a:12,tol:.01,e:"Find Q from MR = MC, then read UP to the demand curve: P = 20 − 8 = $12."},
+{k:"mo",t:"mc",q:"Compared with perfect competition, a monopoly typically has...",o:["A higher price, lower output and deadweight loss","A lower price and higher output","The same price but fewer firms","A horizontal demand curve"],e:"The monopolist restricts output where MR = MC, so P > MC. The lost trades are the deadweight loss."},
+{k:"mo",t:"mc",q:"A regulator forces a natural monopoly to charge P = MC. What is the likely problem?",o:["The firm may lose money because MC is below ATC","The price is too high","Output is too low","Entry becomes free"],e:"Falling ATC means MC lies below ATC, so marginal-cost pricing is efficient but may leave the firm with a loss."},
+{k:"mo",t:"mc",q:"Which is required for a firm to practice price discrimination?",o:["Market power and the ability to stop resale","A perfectly elastic demand curve","Zero fixed costs","Identical willingness to pay across buyers"],e:"The seller needs some market power, a way to separate buyers by willingness to pay, and no resale between groups."}
+];
+
+var $=function(s){return document.querySelector(s)};
+var S={topic:"all",pool:[],i:0,N:12,score:0,streak:0,bestStreak:0,lives:3,hist:[0],right:0,missed:[],locked:false,limit:20,t0:0,tick:null,cur:null,order:[]};
+var best=0;
+try{best=+localStorage.getItem("ctm-best")||0}catch(e){}
+
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function money(n){return (n<0?"−$":"$")+Math.abs(n).toLocaleString("en-US")}
+function show(id){["start","play","end"].forEach(function(s){$("#"+s).hidden=s!==id});$("#end").style.display=id==="end"?"grid":"none"}
+
+function spark(el,data){
+  var W=300,H=+el.getAttribute("viewBox").split(" ")[3],pad=6;
+  var min=Math.min.apply(null,data.concat([0])),max=Math.max.apply(null,data.concat([1]));
+  var n=Math.max(data.length-1,1);
+  var pts=data.map(function(v,i){return [ (i/n)*(W-2*pad)+pad, H-pad-((v-min)/(max-min))*(H-2*pad) ]});
+  var zero=H-pad-((0-min)/(max-min))*(H-2*pad);
+  var line=pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1)}).join(" ");
+  var last=pts[pts.length-1];
+  var area=pts.length>1?"M"+pts[0][0]+","+zero+" L"+line.split(" ").join(" L")+" L"+last[0]+","+zero+"Z":"";
+  el.innerHTML='<line class="base" x1="0" x2="'+W+'" y1="'+zero.toFixed(1)+'" y2="'+zero.toFixed(1)+'" vector-effect="non-scaling-stroke"/>'+
+    (area?'<path class="area" d="'+area+'"/>':'')+
+    (pts.length>1?'<polyline class="ln" points="'+line+'" vector-effect="non-scaling-stroke"/>':'')+
+    '<circle class="dot" cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4"/>';
+}
+
+function hud(){
+  $("#score").textContent=money(S.score);
+  $("#mult").textContent="×"+Math.min(1+S.streak,5);
+  var h="";for(var i=0;i<3;i++)h+='<span class="pip'+(i>=S.lives?" gone":"")+'"></span>';
+  $("#pips").innerHTML=h;
+  spark($("#spark"),S.hist);
+}
+
+function buildChips(){
+  var c=$("#chips");c.innerHTML="";
+  Object.keys(TOPICS).forEach(function(k){
+    var b=document.createElement("button");b.className="chip";b.type="button";b.textContent=TOPICS[k];
+    b.setAttribute("aria-pressed",k===S.topic);
+    b.onclick=function(){S.topic=k;buildChips()};
+    c.appendChild(b);
+  });
+}
+function bestLine(){$("#best").textContent=best?"Best close: "+money(best):"No trades yet"}
+
+function start(pool){
+  S.pool=shuffle(pool);S.N=Math.min(12,S.pool.length);S.i=0;S.score=0;S.streak=0;S.bestStreak=0;S.lives=3;S.hist=[0];S.right=0;S.missed=[];
+  show("play");hud();ask();
+}
+function poolFor(k){return k==="all"?BANK:BANK.filter(function(q){return q.k===k})}
+
+function ask(){
+  var q=S.pool[S.i];S.cur=q;S.locked=false;
+  $("#qmeta").textContent=TOPICS[q.k]+" · Question "+(S.i+1)+" of "+S.N;
+  $("#qtype").textContent=q.t==="tf"?"True / false":q.t==="num"?"Calculation":"Pick one";
+  $("#qtext").textContent=q.q;
+  $("#fb").hidden=true;
+  var box=$("#opts");box.innerHTML="";
+  var nf=$("#numform");nf.hidden=q.t!=="num";$("#numhint").hidden=q.t!=="num";
+  if(q.t==="num"){
+    $("#numin").value="";$("#numin").disabled=false;
+    $("#numform").querySelector("button").disabled=false;
+    $("#numhint").textContent="Type a number, then press Enter. Negative values are fine.";
+    S.limit=40;setTimeout(function(){$("#numin").focus()},30);
+  }else{
+    S.limit=20;
+    var opts=q.t==="tf"?[{t:"True",ok:q.a===true},{t:"False",ok:q.a===false}]:shuffle(q.o.map(function(t,i){return{t:t,ok:i===0}}));
+    S.order=opts;
+    opts.forEach(function(o,i){
+      var b=document.createElement("button");b.type="button";b.className="opt";
+      b.innerHTML='<kbd>'+(i+1)+'</kbd><span></span>';b.lastChild.textContent=o.t;
+      b.onclick=function(){pick(i)};box.appendChild(b);
+    });
+  }
+  clockStart();
+}
+
+function clockStart(){
+  clearInterval(S.tick);S.t0=performance.now();
+  var bar=$("#clockbar"),clk=$("#clock");clk.classList.remove("low");bar.style.transform="scaleX(1)";
+  S.tick=setInterval(function(){
+    var left=Math.max(0,S.limit-(performance.now()-S.t0)/1000);
+    bar.style.transform="scaleX("+(left/S.limit)+")";
+    clk.classList.toggle("low",left<5);
+    if(left<=0){clearInterval(S.tick);resolve(false,true)}
+  },100);
+}
+
+function pick(i){
+  if(S.locked)return;
+  var btns=$("#opts").children;
+  S.order.forEach(function(o,j){btns[j].disabled=true;if(o.ok)btns[j].classList.add("ok");else if(j===i)btns[j].classList.add("bad");else btns[j].classList.add("dim")});
+  resolve(S.order[i].ok,false);
+}
+function submitNum(e){
+  e.preventDefault();if(S.locked)return;
+  var v=parseFloat($("#numin").value.replace(/[$,\s]/g,"").replace("−","-"));
+  if(isNaN(v)){$("#numhint").textContent="Enter a number first, for example 1.5 or -200.";return}
+  $("#numin").disabled=true;$("#numform").querySelector("button").disabled=true;
+  resolve(Math.abs(v-S.cur.a)<=S.cur.tol,false);
+}
+
+function answerText(q){return q.t==="mc"?q.o[0]:q.t==="tf"?(q.a?"True":"False"):String(q.a<0?"−"+Math.abs(q.a):q.a)}
+
+function resolve(ok,timeout){
+  if(S.locked)return;S.locked=true;clearInterval(S.tick);
+  var q=S.cur,left=Math.max(0,S.limit-(performance.now()-S.t0)/1000),pts=0;
+  if(timeout){var btns=$("#opts").children;S.order.forEach(function(o,j){if(btns[j]){btns[j].disabled=true;btns[j].classList.add(o.ok?"ok":"dim")}});if(q.t==="num"){$("#numin").disabled=true;$("#numform").querySelector("button").disabled=true}}
+  if(ok){
+    var mult=Math.min(1+S.streak,5);pts=Math.round((100+50*left/S.limit)*mult);
+    S.score+=pts;S.streak++;S.right++;S.bestStreak=Math.max(S.bestStreak,S.streak);
+  }else{
+    S.streak=0;S.lives--;S.missed.push(q);
+  }
+  S.hist.push(S.score);hud();
+  var fb=$("#fb");fb.hidden=false;fb.className="fb "+(ok?"ok":"bad");
+  $("#fbh").textContent=ok?"Cleared":(timeout?"Time's up":"Not quite");
+  $("#fbp").textContent=(ok?"":"Answer: "+answerText(q)+". ")+q.e;
+  $("#fbpts").textContent=ok?"+"+money(pts):"−1 credit";
+  var over=S.lives<=0||S.i+1>=S.N;
+  $("#next").textContent=over?"See the close":"Next question";
+  $("#next").focus();
+}
+
+function next(){
+  if(S.lives<=0||S.i+1>=S.N){finish();return}
+  S.i++;ask();
+}
+
+function finish(){
+  clearInterval(S.tick);
+  var halted=S.lives<=0;
+  var rank=S.score<600?"Unpaid Intern":S.score<1800?"Junior Analyst":S.score<3600?"Staff Economist":S.score<5500?"Market Maker":"Central Banker";
+  var newBest=S.score>best;
+  if(newBest){best=S.score;try{localStorage.setItem("ctm-best",String(best))}catch(e){}}
+  show("end");
+  $("#endlabel").textContent=(halted?"Trading halted":"Market closed")+(newBest&&S.score>0?" · New best":"");
+  $("#rank").textContent=rank;
+  spark($("#spark2"),S.hist);
+  $("#facts").innerHTML=
+    '<div class="fact"><span class="label">Closing profit</span><b>'+money(S.score)+'</b></div>'+
+    '<div class="fact"><span class="label">Correct</span><b>'+S.right+' / '+(S.i+1)+'</b></div>'+
+    '<div class="fact"><span class="label">Best streak</span><b>'+S.bestStreak+'</b></div>';
+  var m=$("#miss");m.innerHTML="";
+  S.missed.forEach(function(q){
+    var a=document.createElement("article");
+    a.innerHTML='<span class="label"></span><h3></h3><div class="ans"></div><p></p>';
+    a.children[0].textContent=TOPICS[q.k];a.children[1].textContent=q.q;
+    a.children[2].textContent="Answer: "+answerText(q);a.children[3].textContent=q.e;
+    m.appendChild(a);
+  });
+  $("#missbox").hidden=!S.missed.length;
+  $("#redo").hidden=!S.missed.length;
+  bestLine();
+  window.scrollTo(0,0);
+}
+
+$("#go").onclick=function(){start(poolFor(S.topic))};
+$("#next").onclick=next;
+$("#numform").addEventListener("submit",submitNum);
+$("#again").onclick=function(){start(poolFor(S.topic))};
+$("#redo").onclick=function(){var p=S.missed.slice();start(p)};
+$("#home").onclick=function(){S.score=0;S.streak=0;S.lives=3;S.hist=[0];hud();show("start")};
+document.addEventListener("keydown",function(e){
+  if($("#play").hidden||e.target.tagName==="INPUT")return;
+  if(!S.locked&&S.cur&&S.cur.t!=="num"&&/^[1-4]$/.test(e.key)){var n=+e.key-1;if(n<S.order.length)pick(n)}
+});
+
+buildChips();bestLine();hud();show("start");
+})();
+</script>
+
+</body>
+</html>
+
+</body></html>
